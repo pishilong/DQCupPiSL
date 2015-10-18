@@ -2,18 +2,21 @@ package dqcup.repair.impl;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import dqcup.repair.ColumnNames;
 import dqcup.repair.RepairedCell;
 import dqcup.repair.Tuple;
 
 public class DataProfolling {
 	//不光包括50个州，还包括DC特区以及GU关岛这样的附属
-	static final List<String> STATES = Arrays.asList(
+	private static final List<String> STATES = Arrays.asList(
 			"AK", "AL", "AR", "AS", "AZ", "CA", "CO", "CT", "DC", "DE", 
 			"FL", "FM", "GA", "HI", "IA", "ID", "IL", "IN", "KS", "KY",
 			"LA", "MA", "MD", "ME", "MH", "MI", "MN", "MO", "MP", "MS", 
@@ -21,54 +24,165 @@ public class DataProfolling {
 			"OK", "OR", "PA", "PR", "PW", "RI", "SC", "SD", "TN", "TX", 
 			"UT", "VA", "VI", "VT", "WA", "WI", "WV", "WY", "GU");
 	
+	//根据CUID归类的tuples
+	private static HashMap<String, LinkedList<Tuple>> groupedTuples = new HashMap<String, LinkedList<Tuple>>();
+	
+	//根据groupedTuples,计算truthTuple
+	private static HashMap<String, Tuple> truthTuples = new HashMap<String, Tuple>();
+	
+	//fields
+	private static final String[] FIELDS = new String[]{"CUID", "SSN", "FNAME", "MINIT", "LNAME", "STNUM", "STADD",
+			"APMT", "CITY", "STATE", "ZIP"};
+	
+	//columnNames
+	private static ColumnNames COLUMNNAMES;
+	
 	public static HashSet<RepairedCell> performance(HashSet<RepairedCell> result, LinkedList<Tuple> tuples){
-		result = performanceSingleColumn(result, tuples);
-		result = performanceMultipleColumn(result, tuples);
+		/*
+		 * 初始化辅助变量
+		 * groupedTuples
+		 * truthTuples
+		 */
+		
+		initAux(tuples);
+		/*
+		 * 遍历一次tuples
+		 * 进行单行单列处理（对比metadata进行检查和修复）
+		 */
+		for (Tuple tuple: tuples){
+			Tuple truthTuple = truthTuples.get(tuple.getValue("CUID"));
+			if (!checkSingleSSN(tuple)){
+				result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), 
+						"SSN", 
+						truthTuple.getValue("SSN")));
+			}
+			if (!checkSingleFNAME(tuple)){
+				result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), 
+						"FNAME", 
+						truthTuple.getValue("FNAME")));
+			}
+			if (!checkSingleMINIT(tuple)){
+				result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), 
+						"MINIT", 
+						truthTuple.getValue("MINIT")));
+			}
+			if (!checkSingleLNAME(tuple)){
+				result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), 
+						"LNAME", 
+						truthTuple.getValue("LNAME")));
+			}
+			if (!checkSingleSTNUM(tuple)){
+				result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), 
+						"STNUM", 
+						truthTuple.getValue("STNUM")));
+			}
+			if (!checkSingleSTADD(tuple)){
+				result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), 
+						"STADD", 
+						truthTuple.getValue("STADD")));
+			}
+			if (!checkSingleAPMT(tuple)){
+				result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), 
+						"APMT", 
+						truthTuple.getValue("APMT")));
+			}
+			if (!checkSingleCITY(tuple)){
+				result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), 
+						"CITY",
+						truthTuple.getValue("CITY")));
+			}
+			if (!checkSingleSTATE(tuple)){
+				result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), 
+						"STATE", 
+						truthTuple.getValue("STATE")));
+			}
+			if (!checkSingleZIP(tuple)){
+				result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), 
+						"ZIP", 
+						truthTuple.getValue("ZIP")));
+			}
+			//一致性检查
+			//checkCUIDConsistence(tuple, result);
+		}
 	
 		return result;
+	}
+	
+	/*
+	 * 一致性检查
+	 */
+	private static void checkCUIDConsistence(Tuple tuple, HashSet<RepairedCell> result) {
+		Tuple truthTuple = truthTuples.get(tuple.getValue("CUID"));
+		for (String field : FIELDS) {
+			String value = tuple.getValue(field);
+			String truthValue = truthTuple.getValue(field);
+			if (value != truthValue){
+				result.add(new RepairedCell(
+						Integer.parseInt(tuple.getValue("RUID")), 
+						field, 
+						truthValue));
+			}
+		}
 	}
 
 	/*
-	 * 单列数据Profolling
-	 * */
-	private static HashSet<RepairedCell> performanceSingleColumn(HashSet<RepairedCell> result,
-			LinkedList<Tuple> tuples) {
-		for (Tuple tuple: tuples){
-			if (!checkSingleSSN(tuple)){
-				result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), "SSN", tuple.getValue("SSN")));
-			}
-			if (!checkSingleFNAME(tuple)){
-				result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), "FNAME", tuple.getValue("FNAME")));
-			}
-			if (!checkSingleMINIT(tuple)){
-				result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), "MINIT", tuple.getValue("MINIT")));
-			}
-			if (!checkSingleLNAME(tuple)){
-				result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), "LNAME", tuple.getValue("LNAME")));
-			}
-			if (!checkSingleSTNUM(tuple)){
-				result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), "STNUM", tuple.getValue("STNUM")));
-			}
-			if (!checkSingleSTADD(tuple)){
-				result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), "STADD", tuple.getValue("STADD")));
-			}
-			if (!checkSingleAPMT(tuple)){
-				result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), "APMT", tuple.getValue("APMT")));
-			}
-			if (!checkSingleCITY(tuple)){
-				result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), "CITY", tuple.getValue("CITY")));
-			}
-			if (!checkSingleSTATE(tuple)){
-				result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), "STATE", tuple.getValue("STATE")));
-			}
-			if (!checkSingleZIP(tuple)){
-				result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), "ZIP", tuple.getValue("ZIP")));
+	 * 初始化辅助数据
+	 * groupedTuples
+	 * truthTruples
+	 */
+	private static void initAux(LinkedList<Tuple> tuples) {
+		//根据FIELDS生成COLUMNNAMES
+		StringBuffer sb = new StringBuffer();
+		for (String field : FIELDS) {
+			sb.append(field).append(":");
+		}
+		sb.deleteCharAt(sb.length() - 1);
+		COLUMNNAMES = new ColumnNames(sb.toString());
+		//初始化groupedTuples
+		for (Tuple tuple : tuples){
+			String cuid = tuple.getValue("CUID");
+			if (groupedTuples.containsKey(cuid)) {
+				groupedTuples.get(cuid).add(tuple);
+			} else {
+				LinkedList<Tuple> list = new LinkedList<Tuple>();
+				list.add(tuple);
+				groupedTuples.put(cuid, list);
 			}
 		}
 		
-		return result;
+		//根据most vote原则，计算truthTuples
+		for (Entry entry : groupedTuples.entrySet()){
+			String cuid = (String)entry.getKey();
+			LinkedList<Tuple> list = (LinkedList<Tuple>)entry.getValue();
+			StringBuffer truthValues = new StringBuffer();
+			for (String field : FIELDS) {
+				HashMap<String, Integer> voteBox = new HashMap<String, Integer>();
+				String truthValue = "";
+				int maxVote = Integer.MIN_VALUE;
+				for (Tuple tuple : list) {
+					String value = tuple.getValue(field);
+					if (voteBox.containsKey(value)) {
+						voteBox.put(value, voteBox.get(value) + 1);
+					} else {
+						voteBox.put(value, 1);
+					}
+				}
+				for (Entry voteEntry : voteBox.entrySet()){
+					int voteCount = (Integer) voteEntry.getValue();
+					String value = (String) voteEntry.getKey();
+					if (voteCount > maxVote) {
+						truthValue = value;
+						maxVote = voteCount;
+					}
+				}
+				truthValues.append(truthValue).append(":");				
+			}
+			truthValues.deleteCharAt(truthValues.length() - 1);
+			truthTuples.put(cuid, new Tuple(COLUMNNAMES, truthValues.toString()));
+		}
+		
 	}
-	
+
 	/*
 	 * 邮政编码,五位纯数字
 	 */
@@ -207,12 +321,6 @@ public class DataProfolling {
 		Pattern p = Pattern.compile(regex);
 		Matcher m = p.matcher(tuple.getValue("SSN"));
 		return m.matches();
-	}
-
-	private static HashSet<RepairedCell> performanceMultipleColumn(HashSet<RepairedCell> result,
-			LinkedList<Tuple> tuples) {
-		// TODO Auto-generated method stub
-		return result;
 	}
 
 }
