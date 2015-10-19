@@ -220,7 +220,15 @@ public class DataProfolling {
 		if (STATES.contains(value)) {
 			return value;
 		} else {
-			return value.toUpperCase();
+			String regex = "[a-z]+";
+			Pattern p = Pattern.compile(regex);
+			Matcher m = p.matcher(value);
+			if (m.matches()){
+				return value.toUpperCase();
+			} else {
+				//TODO
+				return "NeedRepair";
+			}
 		}
 	}
 	
