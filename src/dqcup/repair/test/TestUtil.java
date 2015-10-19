@@ -46,7 +46,7 @@ public class TestUtil {
 		
 		return truth;
 	}
-	
+	/*
 	public static double findAccuracy(Set<RepairedCell> truth, Set<RepairedCell> found){
 		if(found.size()!=0){
 			HashMap<Integer,HashSet<String>> truthMap = new HashMap<Integer,HashSet<String>>();
@@ -72,7 +72,35 @@ public class TestUtil {
 			return 2*precision*recall/(precision+recall);
 		}
 		return 0;
-	}
+	} */
+	
+	public static double findAccuracy(Set<RepairedCell> truth, Set<RepairedCell> found){
+    if(found.size()!=0){
+      HashMap<Integer,HashSet<String>> foundMap = new HashMap<Integer,HashSet<String>>();
+      
+      for(RepairedCell cell : found){
+        HashSet<String> columnIds = null;
+        if(foundMap.get(cell.getRowId())==null){
+          columnIds = new HashSet<String>();
+        }else{
+          columnIds = foundMap.get(cell.getRowId());
+        }
+        columnIds.add(cell.getColumnId());
+        foundMap.put(cell.getRowId(), columnIds);
+      }
+      int tAndF = 0;
+      for(RepairedCell cell : truth){
+        if(foundMap.get(cell.getRowId())!=null){
+          if(foundMap.get(cell.getRowId()).contains(cell.getColumnId())){
+            tAndF++;
+          }
+        }
+      }
+      double precision = tAndF*1.0/found.size(),recall = tAndF*1.0/truth.size();
+      return 2*precision*recall/(precision+recall);
+    }
+    return 0;
+  }
 	
 	public static double repairAccuracy(Set<RepairedCell> truth, Set<RepairedCell> found){
 		if(found.size()!=0){
