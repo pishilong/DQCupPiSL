@@ -35,6 +35,9 @@ public class FunctionDependency {
 		groupTruthTuples(truthTuples.values(), "APMT");
 		truthTuples = checkAndRepairField(truthTuples, "STATE");
 		
+		groupTruthTuples(truthTuples.values(), "FNAME");
+		truthTuples = checkAndRepairField(truthTuples, "APMT");
+		
 		return truthTuples;
 	}
 	
@@ -77,6 +80,7 @@ public class FunctionDependency {
 			case "STADD":
 				break;
 			case "APMT":
+				result = checkAPMT(tuple);
 				break;
 			case "CITY":
 				break;
@@ -88,6 +92,20 @@ public class FunctionDependency {
 				break;	
 		}
 		return result;
+	}
+
+	private static String checkAPMT(Tuple tuple) {
+		// FNAME, STNUM -> APMT
+		String stnum = tuple.getValue("STNUM");
+		LinkedList<Tuple> sameFNAMETuples = groupedTruthTuples.get("FNAME").get(tuple.getValue("FNAME"));
+		LinkedList<Tuple> sameSTNUMTuples = new LinkedList<Tuple>();
+		for (Tuple _tuple : sameFNAMETuples){
+			String _stnum = _tuple.getValue("STNUM");
+			if (_stnum.equals(stnum)){
+				sameSTNUMTuples.add(_tuple);
+			}
+		}
+		return DataProfolling.voteTruthValue(sameSTNUMTuples, "APMT");
 	}
 
 	private static String checkSTATE(Tuple tuple) {
