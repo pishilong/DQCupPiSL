@@ -106,7 +106,11 @@ public class FunctionDependency {
 				sameSTNUMTuples.add(_tuple);
 			}
 		}
-		return DataProfolling.voteTruthValue(sameSTNUMTuples, "APMT");
+		if (sameSTNUMTuples.size() > 2){
+			return DataProfolling.voteTruthValue(sameSTNUMTuples, "APMT");
+		}else{
+			return tuple.getValue("APMT");
+		}
 	}
 
 	private static String checkSTATE(Tuple tuple) {
@@ -129,35 +133,41 @@ public class FunctionDependency {
 		String value = tuple.getValue("ZIP");
 		String stadd = tuple.getValue("STADD");
 		String cuid = tuple.getValue("CUID");
-		LinkedList<Tuple> sameCITYTuples = groupedTruthTuples.get("CITY").get(tuple.getValue("CITY"));
-		LinkedList<Tuple> sameSTADDTules = new LinkedList<Tuple>();
-		for (Tuple sameCITYTuple : sameCITYTuples){
-			String _stadd = sameCITYTuple.getValue("STADD");
-			String _cuid = sameCITYTuple.getValue("CUID");
-			String _zip = sameCITYTuple.getValue("ZIP");
-			if (stadd.equals(_stadd) && DataProfolling.checkZIPFormat(_zip)){
-				sameSTADDTules.add(sameCITYTuple);
-			}	
-		}
-		String truthValue1 = DataProfolling.voteTruthValue(sameSTADDTules, "ZIP");
+		
 		LinkedList<Tuple> sameFNAMETuples = groupedTruthTuples.get("FNAME").get(tuple.getValue("FNAME"));
 		LinkedList<Tuple> sameNameTuples = new LinkedList<Tuple>();
 		for (Tuple _tuple : sameFNAMETuples){
 			String _zip = _tuple.getValue("ZIP");
 			if (tuple.getValue("MINIT").equals(_tuple.getValue("MINIT")) &&
-					tuple.getValue("LNAME").equals(_tuple.getValue("LNAME")) && DataProfolling.checkZIPFormat(_zip)){
+					tuple.getValue("LNAME").equals(_tuple.getValue("LNAME")) && 
+					DataProfolling.checkZIPFormat(_zip)){
 				sameNameTuples.add(_tuple);
 			}
 		}
-		String truthValue2 = "";
+		String truthValue = "";
 		if (sameNameTuples.size() > 1) {
-			truthValue2 = DataProfolling.voteTruthValue(sameNameTuples, "ZIP");
-		}
-		if (truthValue2.isEmpty()){
-			return truthValue1;
+			truthValue = DataProfolling.voteTruthValue(sameNameTuples, "ZIP");
+		} else if(sameNameTuples.size() == 1 &&
+				!sameNameTuples.get(0).getValue("CUID").equals(cuid)){
+			truthValue = DataProfolling.voteTruthValue(sameNameTuples, "ZIP");
 		}else{
-			return truthValue2;
-		}		
+			LinkedList<Tuple> sameCITYTuples = groupedTruthTuples.get("CITY").get(tuple.getValue("CITY"));
+			LinkedList<Tuple> sameSTADDTules = new LinkedList<Tuple>();
+			for (Tuple sameCITYTuple : sameCITYTuples){
+				String _stadd = sameCITYTuple.getValue("STADD");
+				String _cuid = sameCITYTuple.getValue("CUID");
+				String _zip = sameCITYTuple.getValue("ZIP");
+				if (stadd.equals(_stadd) && DataProfolling.checkZIPFormat(_zip)){
+					sameSTADDTules.add(sameCITYTuple);
+				}	
+			}
+			if (sameSTADDTules.size() == 2 && DataProfolling.checkZIPFormat(value)){
+				truthValue = value;
+			} else {
+				truthValue = DataProfolling.voteTruthValue(sameSTADDTules, "ZIP");
+			}
+		}
+		return truthValue;		
 	}
 	
 }
