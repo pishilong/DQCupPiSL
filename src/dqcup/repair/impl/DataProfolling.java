@@ -24,11 +24,12 @@ public class DataProfolling {
 			"OK", "OR", "PA", "PR", "PW", "RI", "SC", "SD", "TN", "TX", 
 			"UT", "VA", "VI", "VT", "WA", "WI", "WV", "WY", "GU");
 	
-	//根据CUID归类的tuples
-	private static HashMap<String, LinkedList<Tuple>> groupedTuples = new HashMap<String, LinkedList<Tuple>>();
+	//根据各个field的tuples
+	private static HashMap<String, HashMap<String, LinkedList<Tuple>>> groupedTuples = new HashMap<String, HashMap<String, LinkedList<Tuple>>>();
 	
 	//根据groupedTuples,计算truthTuple
 	private static HashMap<String, Tuple> truthTuples = new HashMap<String, Tuple>();
+	
 	
 	//fields
 	private static final String[] FIELDS = new String[]{"CUID", "SSN", "FNAME", "MINIT", "LNAME", "STNUM", "STADD",
@@ -73,7 +74,7 @@ public class DataProfolling {
 		generateColumnNames();
 		
 		//初始化groupedTuples
-		groupTuplesByCUID(tuples);
+		groupTuples(tuples);
 		
 		//根据most vote原则，计算truthTuples
 		generateTruthTuples();
@@ -100,7 +101,7 @@ public class DataProfolling {
 	private static void generateTruthTuples() {
 		truthTuples.clear();
 		
-		for (Entry entry : groupedTuples.entrySet()){
+		for (Entry entry : groupedTuples.get("CUID").entrySet()){
 			String cuid = (String)entry.getKey();
 			LinkedList<Tuple> list = (LinkedList<Tuple>)entry.getValue();
 			StringBuffer truthValues = new StringBuffer();
@@ -132,18 +133,22 @@ public class DataProfolling {
 		
 	}
 
-	private static void groupTuplesByCUID(LinkedList<Tuple> tuples) {
+	private static void groupTuples(LinkedList<Tuple> tuples) {
 		groupedTuples.clear();
-		
-		for (Tuple tuple : tuples){
-			String cuid = tuple.getValue("CUID");
-			if (groupedTuples.containsKey(cuid)) {
-				groupedTuples.get(cuid).add(tuple);
-			} else {
-				LinkedList<Tuple> list = new LinkedList<Tuple>();
-				list.add(tuple);
-				groupedTuples.put(cuid, list);
+		String[] fields = new String[]{"CUID", "CITY"};
+		for (String field : fields) {
+			HashMap<String, LinkedList<Tuple>> hashMap = new HashMap<String, LinkedList<Tuple>>();
+			for (Tuple tuple : tuples) {
+				String value = tuple.getValue(field);
+				if (hashMap.containsKey(value)) {
+					hashMap.get(value).add(tuple);
+				} else {
+					LinkedList<Tuple> list = new LinkedList<Tuple>();
+					list.add(tuple);
+					hashMap.put(value, list);
+				}
 			}
+			groupedTuples.put(field, hashMap);
 		}
 	}
 
@@ -201,16 +206,30 @@ public class DataProfolling {
 	/*
 	 * 邮政编码,五位纯数字
 	 */
-	private static String checkSingleZIP(Tuple tuple) {
-		String value = tuple.getValue("ZIP");
+	private static boolean checkZIPFormat(String value){
 		String regex = "^\\d{5}$";
 		Pattern p = Pattern.compile(regex);
 		Matcher m = p.matcher(value);
-		if (m.matches()){
+		return m.matches();
+	}
+	private static String checkSingleZIP(Tuple tuple) {
+		String value = tuple.getValue("ZIP");
+		if (checkZIPFormat(value)){
 			return value;
 		} else {
 			//TODO
-			return "NeedPepair";
+			String stadd = tuple.getValue("STADD");
+			String cuid = tuple.getValue("CUID");
+			LinkedList<Tuple> sameCITYTuples = groupedTuples.get("CITY").get(tuple.getValue("CITY"));
+			for (Tuple sameCITYTuple : sameCITYTuples){
+				String _stadd = sameCITYTuple.getValue("STADD");
+				String _zip = sameCITYTuple.getValue("ZIP");
+				String _cuid = sameCITYTuple.getValue("CUID");
+				if (!cuid.equals(_cuid) && stadd.equals(_stadd) && checkZIPFormat(_zip)){
+					return _zip;
+				}	
+			}
+			return value + "-NeedPepair";
 		}
 
 	}
@@ -231,7 +250,7 @@ public class DataProfolling {
 				return value.toUpperCase();
 			} else {
 				//TODO
-				return "NeedRepair";
+				return value + "-NeedPepair";
 			}
 		}
 	}
@@ -249,7 +268,7 @@ public class DataProfolling {
 			return value;
 		} else {
 			//TODO
-			return "NeedPepair";		
+			return value + "-NeedPepair";		
 		}
 	}
 
@@ -264,7 +283,7 @@ public class DataProfolling {
 				return apmt;
 			} else {
 				//TODO
-				return "NeedPepair";
+				return apmt + "-NeedPepair";
 			}
 		} else {
 			String regex = "^\\d[a-z]\\d$";
@@ -273,8 +292,28 @@ public class DataProfolling {
 			if (m.matches()){
 				return apmt;
 			} else {
-				//TODO
-				return "NeedPepair";
+				//如果是w27这样的，修正为2w7
+				regex = "^[a-z]\\d{2}$";
+				p = Pattern.compile(regex);
+				m = p.matcher(apmt);
+				if (m.matches()){
+					return apmt.substring(1, 2) + apmt.substring(0, 1) + apmt.substring(2);
+				}else{
+					p = Pattern.compile("^\\d{2}[a-z]");
+					m = p.matcher(apmt);
+					if (m.matches()){
+						return apmt.substring(0, 1) + apmt.substring(2) + apmt.substring(1, 2);
+					} else{
+						p = Pattern.compile("\\d[A-Z]\\d");
+						m = p.matcher(apmt);
+						if (m.matches()){
+							return apmt.toLowerCase();
+						} else {
+							return apmt + "-NeedPepair";
+						}
+					}		
+				}
+				
 			}
 		}	
 	}
@@ -300,11 +339,11 @@ public class DataProfolling {
 					return stadd;
 				} else {
 					//TODO
-					return "NeedPepair";
+					return stadd + "NeedPepair";
 				}
 			} else {
 				//TODO
-				return "NeedPepair";
+				return stadd + "NeedPepair";
 			}
 		}
 	}
@@ -319,7 +358,7 @@ public class DataProfolling {
 				return stunum;
 			} else {
 				//TODO
-				return "NeedPepair";
+				return stunum + "NeedPepair";
 			}
 		} else {
 			String regex = "\\d{1,4}";
@@ -329,7 +368,7 @@ public class DataProfolling {
 				return stunum;
 			} else {
 				//TODO
-				return "NeedPepair";
+				return stunum + "-NeedPepair";
 			}
 		}	
 	}
@@ -353,7 +392,7 @@ public class DataProfolling {
 			return lname;
 		} else {
 			//TODO
-			return "NeedPepair";
+			return lname + "-NeedPepair";
 		}
 	}
 
@@ -372,7 +411,7 @@ public class DataProfolling {
 				return minit;
 			} else {
 				//TODO
-				return "NeedPepair";
+				return minit + "-NeedPepair";
 			}
 		}
 	}
@@ -386,7 +425,7 @@ public class DataProfolling {
 			return fname;
 		} else {
 			//TODO
-			return "NeedPepair";
+			return fname + "-NeedPepair";
 		}
 	}
 	
@@ -409,7 +448,7 @@ public class DataProfolling {
 			return ssn;
 		} else {
 			//TODO
-			return "NeedPepair";
+			return ssn + "-NeedPepair";
 		}
 	}
 
