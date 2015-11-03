@@ -31,59 +31,30 @@ public class DataProfolling {
 	private static HashMap<String, Tuple> truthTuples = new HashMap<String, Tuple>();
 	
 	
+	
 	//fields
-	private static final String[] FIELDS = new String[]{"CUID", "SSN", "FNAME", "MINIT", "LNAME", "STNUM", "STADD",
+	public static final String[] FIELDS = new String[]{"CUID", "SSN", "FNAME", "MINIT", "LNAME", "STNUM", "STADD",
 			"APMT", "CITY", "STATE", "ZIP"};
 	
 	//columnNames
-	private static ColumnNames COLUMNNAMES;
+	public static ColumnNames COLUMNNAMES;
 	
-	public static HashSet<RepairedCell> performance(HashSet<RepairedCell> result, LinkedList<Tuple> tuples){
-		/*
-		 * 初始化辅助变量
-		 * groupedTuples
-		 * truthTuples
-		 */
-		
-		initAux(tuples);
-		/*
-		 * 遍历一次tuples
-		 * 进行单行单列处理（对比metadata进行检查和修复）
-		 */
-		for (Tuple tuple: tuples){
-			Tuple truthTuple = truthTuples.get(tuple.getValue("CUID"));
-			for (String field : FIELDS) {
-				if (!tuple.getValue(field).equals(truthTuple.getValue(field))) {
-					result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), 
-							field, 
-							truthTuple.getValue(field)));
-				}
-			}
-		}
-	
-		return result;
-	}
-	
-	/*
-	 * 初始化辅助数据
-	 * groupedTuples
-	 * truthTruples
-	 */
-	private static void initAux(LinkedList<Tuple> tuples) {
-		//根据FIELDS生成COLUMNNAMES
+	public static HashMap<String, Tuple> performance(LinkedList<Tuple> tuples){
+		// 根据FIELDS生成COLUMNNAMES
 		generateColumnNames();
-		
-		//初始化groupedTuples
+
+		// 初始化groupedTuples
 		groupTuples(tuples);
-		
-		//根据most vote原则，计算truthTuples
+
+		// 根据most vote原则，计算truthTuples
 		generateTruthTuples();
-		
+
 		checkAndRepairTruthTuples();
 		
-		
+	
+		return truthTuples;
 	}
-
+	
 	private static void checkAndRepairTruthTuples() {
 		for (Tuple tuple : truthTuples.values()){
 			StringBuffer sb = new StringBuffer();
@@ -95,7 +66,6 @@ public class DataProfolling {
 					new Tuple(COLUMNNAMES, sb.toString()));
 			truthTuples.remove(tuple);
 		}
-		
 	}
 
 	private static void generateTruthTuples() {
@@ -106,25 +76,7 @@ public class DataProfolling {
 			LinkedList<Tuple> list = (LinkedList<Tuple>)entry.getValue();
 			StringBuffer truthValues = new StringBuffer();
 			for (String field : FIELDS) {
-				HashMap<String, Integer> voteBox = new HashMap<String, Integer>();
-				String truthValue = "";
-				int maxVote = Integer.MIN_VALUE;
-				for (Tuple tuple : list) {
-					String value = tuple.getValue(field);
-					if (voteBox.containsKey(value)) {
-						voteBox.put(value, voteBox.get(value) + 1);
-					} else {
-						voteBox.put(value, 1);
-					}
-				}
-				for (Entry voteEntry : voteBox.entrySet()){
-					int voteCount = (Integer) voteEntry.getValue();
-					String value = (String) voteEntry.getKey();
-					if (voteCount > maxVote) {
-						truthValue = value;
-						maxVote = voteCount;
-					}
-				}
+				String truthValue = voteTruthValue(list, field);
 				truthValues.append(truthValue).append(":");				
 			}
 			truthValues.deleteCharAt(truthValues.length() - 1);
@@ -133,9 +85,32 @@ public class DataProfolling {
 		
 	}
 
+	public static String voteTruthValue(LinkedList<Tuple> list, String field) {
+		String truthValue = "";
+		int maxVote = Integer.MIN_VALUE;
+		HashMap<String, Integer> voteBox = new HashMap<String, Integer>();
+		for (Tuple tuple : list) {
+			String value = tuple.getValue(field);
+			if (voteBox.containsKey(value)) {
+				voteBox.put(value, voteBox.get(value) + 1);
+			} else {
+				voteBox.put(value, 1);
+			}
+		}
+		for (Entry voteEntry : voteBox.entrySet()){
+			int voteCount = (Integer) voteEntry.getValue();
+			String value = (String) voteEntry.getKey();
+			if (voteCount > maxVote) {
+				truthValue = value;
+				maxVote = voteCount;
+			}
+		}
+		return truthValue;
+	}
+
 	private static void groupTuples(LinkedList<Tuple> tuples) {
 		groupedTuples.clear();
-		String[] fields = new String[]{"CUID", "CITY"};
+		String[] fields = new String[]{"CUID"};
 		for (String field : fields) {
 			HashMap<String, LinkedList<Tuple>> hashMap = new HashMap<String, LinkedList<Tuple>>();
 			for (Tuple tuple : tuples) {
@@ -206,7 +181,7 @@ public class DataProfolling {
 	/*
 	 * 邮政编码,五位纯数字
 	 */
-	private static boolean checkZIPFormat(String value){
+	public static boolean checkZIPFormat(String value){
 		String regex = "^\\d{5}$";
 		Pattern p = Pattern.compile(regex);
 		Matcher m = p.matcher(value);
@@ -217,18 +192,7 @@ public class DataProfolling {
 		if (checkZIPFormat(value)){
 			return value;
 		} else {
-			//TODO
-			String stadd = tuple.getValue("STADD");
-			String cuid = tuple.getValue("CUID");
-			LinkedList<Tuple> sameCITYTuples = groupedTuples.get("CITY").get(tuple.getValue("CITY"));
-			for (Tuple sameCITYTuple : sameCITYTuples){
-				String _stadd = sameCITYTuple.getValue("STADD");
-				String _zip = sameCITYTuple.getValue("ZIP");
-				String _cuid = sameCITYTuple.getValue("CUID");
-				if (!cuid.equals(_cuid) && stadd.equals(_stadd) && checkZIPFormat(_zip)){
-					return _zip;
-				}	
-			}
+			//TODO	
 			return value + "-NeedPepair";
 		}
 

@@ -1,5 +1,6 @@
 package dqcup.repair.impl;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Set;
@@ -18,8 +19,25 @@ public class DatabaseRepairImpl implements DatabaseRepair {
 		
 		HashSet<RepairedCell> result = new HashSet<RepairedCell>();
 		
+		HashMap<String, Tuple> truthTuples = new HashMap<String, Tuple>();
+		
 		//Data Profolling
-		result = DataProfolling.performance(result, tuples);
+		truthTuples = DataProfolling.performance(tuples);
+		truthTuples = FunctionDependency.performance(truthTuples);
+		/*
+		 * 遍历一次tuples
+		 * 进行单行单列处理（对比metadata进行检查和修复）
+		 */
+		for (Tuple tuple: tuples){
+			Tuple truthTuple = truthTuples.get(tuple.getValue("CUID"));
+			for (String field : DataProfolling.FIELDS) {
+				if (!tuple.getValue(field).equals(truthTuple.getValue(field))) {
+					result.add(new RepairedCell(Integer.parseInt(tuple.getValue("RUID")), 
+							field, 
+							truthTuple.getValue(field)));
+				}
+			}
+		}
 		
 		for (RepairedCell rc : result){
 			System.out.println(rc.toString());
