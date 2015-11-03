@@ -40,6 +40,8 @@ public class DataProfolling {
 	public static ColumnNames COLUMNNAMES;
 	
 	public static HashMap<String, Tuple> performance(LinkedList<Tuple> tuples){
+		groupedTuples.clear();
+		truthTuples.clear();
 		// 根据FIELDS生成COLUMNNAMES
 		generateColumnNames();
 
@@ -69,8 +71,7 @@ public class DataProfolling {
 	}
 
 	private static void generateTruthTuples() {
-		truthTuples.clear();
-		
+	
 		for (Entry entry : groupedTuples.get("CUID").entrySet()){
 			String cuid = (String)entry.getKey();
 			LinkedList<Tuple> list = (LinkedList<Tuple>)entry.getValue();
@@ -109,7 +110,7 @@ public class DataProfolling {
 	}
 
 	private static void groupTuples(LinkedList<Tuple> tuples) {
-		groupedTuples.clear();
+		
 		String[] fields = new String[]{"CUID"};
 		for (String field : fields) {
 			HashMap<String, LinkedList<Tuple>> hashMap = new HashMap<String, LinkedList<Tuple>>();
