@@ -29,14 +29,15 @@ public class FunctionDependency {
 	public static HashMap<String, Tuple> performance(HashMap<String, Tuple> truthTuples) {
 		groupedTruthTuples.clear();
 		groupTruthTuples(truthTuples.values(), "CITY");
+		groupTruthTuples(truthTuples.values(), "FNAME");
 		
 		truthTuples = checkAndRepairField(truthTuples, "ZIP");
+		truthTuples = checkAndRepairField(truthTuples, "APMT");
 		
 		groupTruthTuples(truthTuples.values(), "APMT");
 		truthTuples = checkAndRepairField(truthTuples, "STATE");
 		
-		groupTruthTuples(truthTuples.values(), "FNAME");
-		truthTuples = checkAndRepairField(truthTuples, "APMT");
+		
 		
 		return truthTuples;
 	}
@@ -138,7 +139,25 @@ public class FunctionDependency {
 				sameSTADDTules.add(sameCITYTuple);
 			}	
 		}
-		return DataProfolling.voteTruthValue(sameSTADDTules, "ZIP");
+		String truthValue1 = DataProfolling.voteTruthValue(sameSTADDTules, "ZIP");
+		LinkedList<Tuple> sameFNAMETuples = groupedTruthTuples.get("FNAME").get(tuple.getValue("FNAME"));
+		LinkedList<Tuple> sameNameTuples = new LinkedList<Tuple>();
+		for (Tuple _tuple : sameFNAMETuples){
+			String _zip = _tuple.getValue("ZIP");
+			if (tuple.getValue("MINIT").equals(_tuple.getValue("MINIT")) &&
+					tuple.getValue("LNAME").equals(_tuple.getValue("LNAME")) && DataProfolling.checkZIPFormat(_zip)){
+				sameNameTuples.add(_tuple);
+			}
+		}
+		String truthValue2 = "";
+		if (sameNameTuples.size() > 1) {
+			truthValue2 = DataProfolling.voteTruthValue(sameNameTuples, "ZIP");
+		}
+		if (truthValue2.isEmpty()){
+			return truthValue1;
+		}else{
+			return truthValue2;
+		}		
 	}
 	
 }
