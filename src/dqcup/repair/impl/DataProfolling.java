@@ -98,6 +98,8 @@ public class DataProfolling {
 	}
 
 	private static void generateTruthTuples() {
+		truthTuples.clear();
+		
 		for (Entry entry : groupedTuples.entrySet()){
 			String cuid = (String)entry.getKey();
 			LinkedList<Tuple> list = (LinkedList<Tuple>)entry.getValue();
@@ -131,6 +133,8 @@ public class DataProfolling {
 	}
 
 	private static void groupTuplesByCUID(LinkedList<Tuple> tuples) {
+		groupedTuples.clear();
+		
 		for (Tuple tuple : tuples){
 			String cuid = tuple.getValue("CUID");
 			if (groupedTuples.containsKey(cuid)) {
