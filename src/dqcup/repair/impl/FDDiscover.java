@@ -1,6 +1,7 @@
 package dqcup.repair.impl;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -21,9 +22,15 @@ public class FDDiscover {
 	//顶点key
 	public static final Set<String> topRhs = new HashSet<String>(Arrays.asList("top"));
 	
+	//Partition -> {A}, {{1, {1,2,3}}, {2, {4, 5}}}对值进行区分，并且保存CUID
+	public static HashMap<Set<String>, HashMap<Integer, Set<Integer>>> partition;
+	
+	//总数
+	public static int tuplesAmount;
+	
 
 	public static void performance(HashMap<String, Tuple> truthTuples) {
-		initFDDiscover();
+		initFDDiscover(truthTuples);
 		
 		List<Set<String>> currentLevel = levels.getLast();
 		
@@ -41,7 +48,76 @@ public class FDDiscover {
 		List<Set<String>> nextLevel = new LinkedList<Set<String>>();
 		List<List<Set<String>>> prefixBlocks = findPrefixBlocks(currentLevel);
 		
-		return null;
+		for(List<Set<String>> prefixBlock : prefixBlocks){
+			//X=Y并Z
+			Set<String> block_0 = prefixBlock.get(0);
+			Set<String> block_1 = prefixBlock.get(1);
+			Set<String> wholeBlock = new HashSet<String>(block_0);
+			wholeBlock.addAll(block_1);
+			//计算partition[X] = product(partition[Y],partition[Z])
+			partition.put(wholeBlock, 
+					strippedProduct(
+							partition.get(block_0),
+							partition.get(block_1)
+					));
+			
+			boolean flag = true;
+			for(String element : wholeBlock){
+				Set<String> dummy = new HashSet<String>(wholeBlock);
+				dummy.remove(element);
+				if(!currentLevel.contains(dummy)){
+					flag = false;
+				}	
+			}
+			
+			if(flag){
+				nextLevel.add(wholeBlock);
+			}
+		
+		}
+		
+		return nextLevel;
+	}
+
+
+
+
+	private static HashMap<Integer, Set<Integer>> strippedProduct(HashMap<Integer, Set<Integer>> partition_1,
+			HashMap<Integer, Set<Integer>> partition_2) {
+		
+		HashMap<Integer, Set<Integer>> result = new HashMap<Integer, Set<Integer>>();
+		HashMap<Integer, Integer> T = new HashMap<Integer, Integer>();
+		HashMap<Integer, Set<Integer>> S = new HashMap<Integer, Set<Integer>>();
+		int index = 1;
+		
+		for(int i = 1; i < partition_1.size(); i++){
+			for(int cuid : partition_1.get(i)){
+				T.put(cuid, i);
+			}
+		}
+		
+		for(int i = 1; i < partition_2.size(); i++){
+			for(int cuid : partition_2.get(i)){
+				if (T.containsKey(cuid)){
+					int klass = T.get(cuid);
+					if (S.containsKey(klass)){
+						S.get(klass).addAll(Arrays.asList(cuid));
+					}else{
+						S.put(klass, new HashSet<Integer>(Arrays.asList(cuid)));
+					}
+				}
+			}
+			
+			for(int cuid : partition_2.get(i)){
+				Set<Integer> block = S.get(T.get(cuid));
+				if (block != null && block.size() > 1) {
+					result.put(index, block);
+					index += 1;
+					S.remove(T.get(cuid));
+				}
+			}
+		}
+		return result;
 	}
 
 
@@ -75,8 +151,7 @@ public class FDDiscover {
 
 
 	private static void prune(List<Set<String>> currentLevel) {
-		// TODO Auto-generated method stub
-		
+		//TODO superKey Logic
 	}
 
 
@@ -98,8 +173,9 @@ public class FDDiscover {
 			for(String candidate : candidates){
 				Set<String> fromSet = new HashSet<String>(elements);
 				fromSet.remove(candidate);
-				if (checkValid(fromSet, candidate)){
+				if (!fromSet.isEmpty() && checkValid(fromSet, candidate)){
 					FD.put(candidate, fromSet);
+					System.out.println("Function Dependency" + fromSet.toString() + "->" + candidate);
 					rhs.get(elements).remove(candidate);
 					rhs.get(elements).removeAll(lastSet);
 				}
@@ -110,8 +186,22 @@ public class FDDiscover {
 
 
 	private static boolean checkValid(Set<String> fromSet, String candidate) {
-		// TODO Auto-generated method stub
-		return false;
+		int e = 0;
+		Set<String> wholeSet = new HashSet<String>(fromSet);
+		HashMap<Integer, Integer> T = new HashMap<Integer, Integer>();
+		wholeSet.add(candidate);
+		for(Set<Integer> c : partition.get(wholeSet).values()){
+			T.put(c.iterator().next(), c.size());
+		}
+		for(Set<Integer> c : partition.get(fromSet).values()){
+			int m = 1;
+			for (int cuid : c){
+				if (T.containsKey(cuid) && T.get(cuid) > m) m = T.get(cuid);
+			}
+			e += c.size() - m;
+		}
+		
+		return (double) e/(double) tuplesAmount > 0.9;
 	}
 
 
@@ -123,7 +213,8 @@ public class FDDiscover {
 				Set<String> _elements = new HashSet<String>(elements);
 				_elements.remove(element);
 				//对每个rhsElement进行并集操作
-				Set<String> rhsElement = caculateRHS(_elements);
+				if(_elements.isEmpty()) _elements = topRhs;
+				Set<String> rhsElement = rhs.get(_elements);
 				if(result.isEmpty()){
 					result.addAll(rhsElement);
 				}else{
@@ -134,14 +225,7 @@ public class FDDiscover {
 		}
 	}
 
-
-	private static Set<String> caculateRHS(Set<String> elements) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-
-	private static void initFDDiscover() {
+	private static void initFDDiscover(HashMap<String, Tuple> truthTuples) {
 		levels = new LinkedList<List<Set<String>>>();
 		List<Set<String>> firstLevel = new LinkedList<Set<String>>();
 		for(String field : DataProfolling.FIELDS){
@@ -157,6 +241,41 @@ public class FDDiscover {
 		//顶点
 		rhs.put(topRhs, 
 				new HashSet<String>(Arrays.asList(DataProfolling.FIELDS)));
+		
+		//分区
+		partition = new HashMap<Set<String>, HashMap<Integer, Set<Integer>>>();
+		
+		Collection<Tuple> tuples = truthTuples.values();
+		for(Set<String> element : firstLevel){
+			String field = (String) element.toArray()[0];
+			HashMap<String, Integer> valueDict = new HashMap<String, Integer>();
+			int valueClass = 1;
+			HashMap<Integer, Set<Integer>> result = new HashMap<Integer, Set<Integer>>();
+			for (Tuple tuple : tuples) {
+				String value = tuple.getValue(field);
+				int cuid = Integer.parseInt(tuple.getValue("CUID"));
+				int klass;
+				if (valueDict.containsKey(value)){
+					klass = valueDict.get(value);
+				}else{
+					klass = valueClass;
+					valueDict.put(value, valueClass);
+					valueClass += 1;
+				}
+				
+				if (result.containsKey(klass)) {
+					result.get(klass).add(cuid);
+				} else {
+					Set<Integer> cuidSet = new HashSet<Integer>();
+					cuidSet.add(cuid);
+					result.put(klass, cuidSet);
+				}
+			}
+			partition.put(element, result);
+		}
+		
+		tuplesAmount = truthTuples.size();
+		
 	}
 
 }
