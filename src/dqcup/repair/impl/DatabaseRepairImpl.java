@@ -23,7 +23,8 @@ public class DatabaseRepairImpl implements DatabaseRepair {
 		
 		//Data Profolling
 		truthTuples = DataProfolling.performance(tuples);
-		truthTuples = FunctionDependency.performance(truthTuples);
+		FDDiscover.performance(truthTuples);
+		//truthTuples = FunctionDependency.performance(truthTuples);
 		/*
 		 * 遍历一次tuples
 		 * 进行单行单列处理（对比metadata进行检查和修复）
