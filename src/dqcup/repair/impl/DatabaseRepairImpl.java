@@ -21,9 +21,12 @@ public class DatabaseRepairImpl implements DatabaseRepair {
 		
 		HashMap<String, Tuple> truthTuples = new HashMap<String, Tuple>();
 		
+		HashMap<String, Set<String>> FDs;
+		
 		//Data Profolling
 		truthTuples = DataProfolling.performance(tuples);
-		FDDiscover.performance(truthTuples);
+		FDs = FDDiscover.performance(truthTuples);
+		truthTuples = FDScanner.performance(FDs, truthTuples);
 		//truthTuples = FunctionDependency.performance(truthTuples);
 		/*
 		 * 遍历一次tuples

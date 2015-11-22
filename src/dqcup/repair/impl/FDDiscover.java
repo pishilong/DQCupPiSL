@@ -31,8 +31,11 @@ public class FDDiscover {
 	//总数
 	public static int tuplesAmount;
 	
+	//epsilon
+	public static final float eps = (float) 0.001;
+	
 
-	public static void performance(HashMap<String, Tuple> truthTuples) {
+	public static HashMap<String, Set<String>> performance(HashMap<String, Tuple> truthTuples) {
 		initFDDiscover(truthTuples);
 		
 		List<Set<String>> currentLevel = levels.getLast();
@@ -45,6 +48,7 @@ public class FDDiscover {
 			currentLevel = levels.getLast();
 		}
 		
+		return FD;	
 	}
 
 
@@ -95,13 +99,13 @@ public class FDDiscover {
 		LinkedList<Set<Integer>> p1Values = new LinkedList<Set<Integer>>(partition_1.values());
 		LinkedList<Set<Integer>> p2Values = new LinkedList<Set<Integer>>(partition_2.values());
 		
-		for(int i = 1; i < p1Values.size(); i++){		
+		for(int i = 0; i < p1Values.size(); i++){		
 			for(int cuid : p1Values.get(i)){
 				T.put(cuid, i);
 			}
 		}
 		
-		for(int i = 1; i < p2Values.size(); i++){
+		for(int i = 0; i < p2Values.size(); i++){
 			for(int cuid : p2Values.get(i)){
 				if (T.containsKey(cuid)){
 					int klass = T.get(cuid);
@@ -203,13 +207,13 @@ public class FDDiscover {
 			Set<String> lastSet = new HashSet<String>(rhs.get(emptyRhs));
 			lastSet.removeAll(elements);
 			
-			for(String candidate : candidates){
-				Set<String> fromSet = new HashSet<String>(elements);
-				fromSet.remove(candidate);
-				if (!fromSet.isEmpty() && checkValid(fromSet, candidate)){
-					FD.put(candidate, fromSet);
-					System.out.println("Function Dependency" + fromSet.toString() + "->" + candidate);
-					rhs.get(elements).remove(candidate);
+			for(String A : candidates){
+				Set<String> X = new HashSet<String>(elements);
+				X.remove(A);
+				if (!X.isEmpty() && checkValid(X, A)){
+					FD.put(A, X);
+					System.out.println("Function Dependency" + X.toString() + "->" + A);
+					rhs.get(elements).remove(A);
 					rhs.get(elements).removeAll(lastSet);
 				}
 			}
@@ -218,18 +222,30 @@ public class FDDiscover {
 	}
 
 
-	//lemma 3.5 X->A holds if and only if e(X) = e(X union {A})
+	//e(X-{A} -> A) < threshold
 	private static boolean checkValid(Set<String> X, String A) {
-		//X并{A}
-		Set<String> wholeSet = new HashSet<String>(X);	
+		// X-{A}
+		Set<String> wholeSet = new HashSet<String>(X);
 		wholeSet.add(A);
+		float e_x = caculateE(X);
+		float e_w = caculateE(wholeSet);
+		if (e_x < eps){
+			return true;
+		}else{
+			float e = computeFDE(X, A, wholeSet);		
+	        return e < eps;
+		}
+	}
+
+
+	private static float computeFDE(Set<String> X, String A, Set<String> wholeSet) {
 		int e = 0;
-		
-        HashMap<Integer, Integer> T = new HashMap<Integer, Integer>();
-        for(Set<Integer> c : partition.get(wholeSet).values()){
-        	T.put(c.iterator().next(), c.size());
-        }
-        for(Set<Integer> c : partition.get(X).values()){
+
+		HashMap<Integer, Integer> T = new HashMap<Integer, Integer>();
+		for (Set<Integer> c : partition.get(wholeSet).values()) {
+			T.put(c.iterator().next(), c.size());
+		}
+		for (Set<Integer> c : partition.get(X).values()) {
 			int m = 1;
 			for (int cuid : c) {
 				if (T.containsKey(cuid) && T.get(cuid) > m)
@@ -237,21 +253,13 @@ public class FDDiscover {
 			}
 			e += c.size() - m;
 		}
-        float result = (float)e/(float)tuplesAmount;
-        if(result < 0.001){
-        	System.out.println(X.toString()+"->"+A +": "+ result);
-        }
-        return result < 0.001;
-        
-		/*	
-		return caculateE(X) == caculateE(wholeSet);
-		*/
+		return (float) e / (float) tuplesAmount;
 	}
 
 
 	//在stripped partition的前提下，e(X) = (partion(X)中所有等价类的size总和 - partion(X)的等价类个数)/总的记录数
 	//stripped partition是在分区时，移除size 为 1的等价类
-	private static Object caculateE(Set<String> X) {
+	private static float caculateE(Set<String> X) {
 		HashMap<Integer, Set<Integer>> strippedPartition = partition.get(X);
 		int sumSize = 0;
 		for(Set<Integer> eqClass : strippedPartition.values()){
@@ -335,18 +343,25 @@ public class FDDiscover {
 				}
 			}
 			
-			Iterator<Entry<Integer, Set<Integer>>>  it = result.entrySet().iterator();
-			while(it.hasNext()){
-				Entry<Integer, Set<Integer>> entry = it.next();
-				if(entry.getValue().size() == 1){
-					it.remove();
-				}
-			}
+			result = stripSet(result);
+			
 			partition.put(element, result);
 		}
 		
 		tuplesAmount = truthTuples.size();
 		
+	}
+
+
+	private static HashMap<Integer, Set<Integer>> stripSet(HashMap<Integer, Set<Integer>> result) {
+		Iterator<Entry<Integer, Set<Integer>>>  it = result.entrySet().iterator();
+		while(it.hasNext()){
+			Entry<Integer, Set<Integer>> entry = it.next();
+			if(entry.getValue().size() == 1){
+				it.remove();
+			}
+		}
+		return result;
 	}
 	
 }
