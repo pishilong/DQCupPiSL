@@ -194,7 +194,7 @@ public class DataProfolling {
 			return value;
 		} else {
 			//TODO	
-			return value + "-NeedPepair";
+			return value + "-NeedRepair";
 		}
 
 	}
@@ -215,7 +215,7 @@ public class DataProfolling {
 				return value.toUpperCase();
 			} else {
 				//TODO
-				return value + "-NeedPepair";
+				return value + "-NeedRepair";
 			}
 		}
 	}
@@ -233,7 +233,7 @@ public class DataProfolling {
 			return value;
 		} else {
 			//TODO
-			return value + "-NeedPepair";		
+			return value + "-NeedRepair";		
 		}
 	}
 
@@ -248,7 +248,7 @@ public class DataProfolling {
 				return apmt;
 			} else {
 				//TODO
-				return apmt + "-NeedPepair";
+				return apmt + "-NeedRepair";
 			}
 		} else {
 			String regex = "^\\d[a-z]\\d$";
@@ -274,7 +274,7 @@ public class DataProfolling {
 						if (m.matches()){
 							return apmt.toLowerCase();
 						} else {
-							return apmt + "-NeedPepair";
+							return apmt + "-NeedRepair";
 						}
 					}		
 				}
@@ -304,11 +304,11 @@ public class DataProfolling {
 					return stadd;
 				} else {
 					//TODO
-					return stadd + "NeedPepair";
+					return stadd + "NeedRepair";
 				}
 			} else {
 				//TODO
-				return stadd + "NeedPepair";
+				return stadd + "NeedRepair";
 			}
 		}
 	}
@@ -323,7 +323,7 @@ public class DataProfolling {
 				return stunum;
 			} else {
 				//TODO
-				return stunum + "NeedPepair";
+				return stunum + "NeedRepair";
 			}
 		} else {
 			String regex = "\\d{1,4}";
@@ -333,7 +333,7 @@ public class DataProfolling {
 				return stunum;
 			} else {
 				//TODO
-				return stunum + "-NeedPepair";
+				return stunum + "-NeedRepair";
 			}
 		}	
 	}
@@ -357,7 +357,7 @@ public class DataProfolling {
 			return lname;
 		} else {
 			//TODO
-			return lname + "-NeedPepair";
+			return lname + "-NeedRepair";
 		}
 	}
 
@@ -376,7 +376,7 @@ public class DataProfolling {
 				return minit;
 			} else {
 				//TODO
-				return minit + "-NeedPepair";
+				return minit + "-NeedRepair";
 			}
 		}
 	}
@@ -390,7 +390,7 @@ public class DataProfolling {
 			return fname;
 		} else {
 			//TODO
-			return fname + "-NeedPepair";
+			return fname + "-NeedRepair";
 		}
 	}
 	
@@ -413,7 +413,7 @@ public class DataProfolling {
 			return ssn;
 		} else {
 			//TODO
-			return ssn + "-NeedPepair";
+			return ssn + "-NeedRepair";
 		}
 	}
 

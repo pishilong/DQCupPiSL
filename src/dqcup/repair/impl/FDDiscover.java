@@ -32,7 +32,17 @@ public class FDDiscover {
 	public static int tuplesAmount;
 	
 	//epsilon
-	public static final float eps = (float) 0.001;
+	public static final float eps = (float) 0.02;
+	
+	//stop level
+	private static final int stopLevel = 4;
+	
+	//fields
+	public static final String[] FIELDS = new String[]{"FNAME", "LNAME", "STNUM", "STADD",
+				"APMT", "CITY", "STATE", "ZIP"};
+	
+	//e(X->A)记录对于每个A的FD的e最小值
+	public static HashMap<String, Float> rhsE;
 	
 
 	public static HashMap<String, Set<String>> performance(HashMap<String, Tuple> truthTuples) {
@@ -40,7 +50,7 @@ public class FDDiscover {
 		
 		List<Set<String>> currentLevel = levels.getLast();
 		
-		while(!currentLevel.isEmpty()){
+		while(!currentLevel.isEmpty() && levels.size() <= stopLevel){
 			System.out.println("currentLevel:" + currentLevel.toString());
 			computeDependencies(currentLevel);
 			prune(currentLevel);
@@ -167,19 +177,20 @@ public class FDDiscover {
 				it.remove();
 			} else {
 				// X is a superKey
-				if (partition.get(X).isEmpty()) {
+				if (caculateE(X) == 0) {
 					Set<String> _set = new HashSet<String>(rhs.get(X));
 					_set.removeAll(X);
 					for (String A : _set) {
-						Set<String> wholeSet = new HashSet<String>(X);
+						Set<String> XA = new HashSet<String>(X);
 						Set<String> interSet = new HashSet<String>();
-						wholeSet.add(A);
+						XA.add(A);
 						for (String B : X) {
-							wholeSet.remove(B);
-							interSet.retainAll(rhs.get(wholeSet));
+							XA.remove(B);
+							interSet.retainAll(rhs.get(XA));
 						}
 						if (interSet.contains(A)) {
-							FD.put(A, X);
+							addFD(A,X);
+							
 							System.out.println("Function Dependency" + X.toString() + "->" + A);
 						}
 					}
@@ -188,6 +199,16 @@ public class FDDiscover {
 			}
 		}
 		//superKey Logic, X 的分区中所有等价类的size都是1，对于stripped partition来说，就是空
+		
+	}
+
+
+	private static void addFD(String a, Set<String> x, float e) {
+		if(!FD.containsKey(a)){
+			FD.put(a, x);
+			rhsE.put(key, value)
+			//System.out.println("Function Dependency" + X.toString() + "->" + A);
+		}
 		
 	}
 
@@ -210,11 +231,14 @@ public class FDDiscover {
 			for(String A : candidates){
 				Set<String> X = new HashSet<String>(elements);
 				X.remove(A);
+				Set<String> XA = new HashSet<String>(X);
+				XA.add(A);
 				if (!X.isEmpty() && checkValid(X, A)){
-					FD.put(A, X);
-					System.out.println("Function Dependency" + X.toString() + "->" + A);
+					addFD(A,X);
 					rhs.get(elements).remove(A);
-					rhs.get(elements).removeAll(lastSet);
+					if(caculateE(X) == caculateE(XA)){
+						rhs.get(elements).removeAll(lastSet);
+					}
 				}
 			}
 		}
@@ -225,24 +249,25 @@ public class FDDiscover {
 	//e(X-{A} -> A) < threshold
 	private static boolean checkValid(Set<String> X, String A) {
 		// X-{A}
-		Set<String> wholeSet = new HashSet<String>(X);
-		wholeSet.add(A);
+		Set<String> XA = new HashSet<String>(X);
+		XA.add(A);
 		float e_x = caculateE(X);
-		float e_w = caculateE(wholeSet);
-		if (e_x < eps){
+		float e_w = caculateE(XA);
+		if (e_x - e_w > eps && e_x < eps){
 			return true;
 		}else{
-			float e = computeFDE(X, A, wholeSet);		
+			float e = computeFDE(X, A, XA);		
 	        return e < eps;
 		}
 	}
 
 
-	private static float computeFDE(Set<String> X, String A, Set<String> wholeSet) {
+	private static float computeFDE(Set<String> X, String A, Set<String> XA) {
 		int e = 0;
 
 		HashMap<Integer, Integer> T = new HashMap<Integer, Integer>();
-		for (Set<Integer> c : partition.get(wholeSet).values()) {
+		
+		for (Set<Integer> c : partition.get(XA).values()) {
 			T.put(c.iterator().next(), c.size());
 		}
 		for (Set<Integer> c : partition.get(X).values()) {
@@ -253,7 +278,12 @@ public class FDDiscover {
 			}
 			e += c.size() - m;
 		}
-		return (float) e / (float) tuplesAmount;
+		
+		float result = (float) e / (float) tuplesAmount;
+		if(A == "ZIP"){
+			System.out.println("e(" + X.toString() + "->" + A + ")=" + result);
+		}
+		return result;
 	}
 
 
@@ -296,9 +326,10 @@ public class FDDiscover {
 	}
 
 	private static void initFDDiscover(HashMap<String, Tuple> truthTuples) {
+		rhsE = new HashMap<String, Float>();
 		levels = new LinkedList<List<Set<String>>>();
 		List<Set<String>> firstLevel = new LinkedList<Set<String>>();
-		for(String field : DataProfolling.FIELDS){
+		for(String field : FIELDS){
 			Set<String> _set = new HashSet<String>();
 			_set.add(field);
 			firstLevel.add(_set);
@@ -310,7 +341,7 @@ public class FDDiscover {
 		rhs = new HashMap<Set<String>, Set<String>>();
 		//顶点
 		rhs.put(emptyRhs, 
-				new HashSet<String>(Arrays.asList(DataProfolling.FIELDS)));
+				new HashSet<String>(Arrays.asList(FIELDS)));
 		
 		//分区
 		//Stripped partition需要移除size 为1的等价类

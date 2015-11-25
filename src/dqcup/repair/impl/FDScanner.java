@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -15,6 +16,9 @@ public class FDScanner {
 	public static HashMap<String, Tuple> performance(HashMap<String, Set<String>> FDs,
 			HashMap<String, Tuple> truthTuples) {
 		
+		for(Entry<String, Set<String>> fd : FDs.entrySet()){
+			System.out.println(fd.getValue().toString() + "->" + fd.getKey());
+		}
 		LinkedList<String> FDKeys = new LinkedList<String>(FDs.keySet());
 		
 		for (Tuple tuple : truthTuples.values()) {
@@ -50,9 +54,16 @@ public class FDScanner {
 		for(int _cuid : partition){
 			tuples.add(truthTuples.get(Integer.toString(_cuid)));
 		}
+		Iterator<Tuple> it = tuples.iterator();
+		while(it.hasNext()){
+			Tuple t = it.next();
+			if(t.getValue(field).matches("NeedRepair")){
+				it.remove();
+			}
+		}
 		if(tuples.size() > 2){
 			return DataProfolling.voteTruthValue(tuples, field);	
-		}else{
+		}else{	
 			return tuple.getValue(field);
 		}	
 	}
