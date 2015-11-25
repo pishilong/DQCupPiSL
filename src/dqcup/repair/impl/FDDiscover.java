@@ -18,7 +18,7 @@ public class FDDiscover {
 	public static LinkedList<List<Set<String>>> levels;
 	
 	//FD信息
-	public static HashMap<String, Set<String>> FD;
+	public static HashMap<String, Set<Set<String>>> FD;
 	
 	//Right Hand Sides plus
 	public static HashMap<Set<String>, Set<String>> rhs;
@@ -32,7 +32,7 @@ public class FDDiscover {
 	public static int tuplesAmount;
 	
 	//epsilon
-	public static final float eps = (float) 0.02;
+	public static final float eps = (float) 0.0001;
 	
 	//stop level
 	private static final int stopLevel = 4;
@@ -45,7 +45,7 @@ public class FDDiscover {
 	public static HashMap<String, Float> rhsE;
 	
 
-	public static HashMap<String, Set<String>> performance(HashMap<String, Tuple> truthTuples) {
+	public static HashMap<String, Set<Set<String>>> performance(HashMap<String, Tuple> truthTuples) {
 		initFDDiscover(truthTuples);
 		
 		List<Set<String>> currentLevel = levels.getLast();
@@ -132,8 +132,8 @@ public class FDDiscover {
 				if (block != null && block.size() > 1) {
 					result.put(index, block);
 					index += 1;
-					S.remove(T.get(cuid));
 				}
+				S.remove(T.get(cuid));
 			}
 		}
 		return result;
@@ -190,8 +190,6 @@ public class FDDiscover {
 						}
 						if (interSet.contains(A)) {
 							addFD(A,X);
-							
-							System.out.println("Function Dependency" + X.toString() + "->" + A);
 						}
 					}
 					it.remove();
@@ -203,11 +201,14 @@ public class FDDiscover {
 	}
 
 
-	private static void addFD(String a, Set<String> x, float e) {
-		if(!FD.containsKey(a)){
-			FD.put(a, x);
-			rhsE.put(key, value)
+	private static void addFD(String a, Set<String> x) {
+		if(FD.containsKey(a)){
+			FD.get(a).add(x);
 			//System.out.println("Function Dependency" + X.toString() + "->" + A);
+		}else{
+			Set<Set<String>> fdSet = new HashSet<Set<String>>();
+			fdSet.add(x);
+			FD.put(a, fdSet);
 		}
 		
 	}
@@ -280,8 +281,9 @@ public class FDDiscover {
 		}
 		
 		float result = (float) e / (float) tuplesAmount;
-		if(A == "ZIP"){
-			System.out.println("e(" + X.toString() + "->" + A + ")=" + result);
+		
+		if(A == "ZIP" && X.contains("STADD")){
+			System.out.println("e(" + X + "->" + A + "): " + result);
 		}
 		return result;
 	}
@@ -336,7 +338,7 @@ public class FDDiscover {
 		}
 		levels.addLast(firstLevel);
 		
-		FD = new HashMap<String, Set<String>>();
+		FD = new HashMap<String, Set<Set<String>>>();
 		
 		rhs = new HashMap<Set<String>, Set<String>>();
 		//顶点
