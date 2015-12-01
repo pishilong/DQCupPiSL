@@ -26,8 +26,9 @@ public class DatabaseRepairImpl implements DatabaseRepair {
 		//Data Profolling
 		truthTuples = DataProfolling.performance(tuples);
 		FDs = FDDiscover.performance(truthTuples);
-		truthTuples = FDScanner.performance(FDs, truthTuples);
 		//truthTuples = FunctionDependency.performance(truthTuples);
+		truthTuples = FDScanner.performance(FDs, truthTuples);
+		
 		/*
 		 * 遍历一次tuples
 		 * 进行单行单列处理（对比metadata进行检查和修复）
@@ -43,9 +44,11 @@ public class DatabaseRepairImpl implements DatabaseRepair {
 			}
 		}
 		
+		/*
 		for (RepairedCell rc : result){
 			System.out.println(rc.toString());
 		}
+		*/
 		
 		return result;
 	}

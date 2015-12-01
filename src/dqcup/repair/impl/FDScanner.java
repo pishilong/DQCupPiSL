@@ -8,6 +8,8 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.Set;
 
 import dqcup.repair.Tuple;
@@ -17,17 +19,24 @@ public class FDScanner {
 	public static HashMap<String, Tuple> performance(HashMap<String, Set<Set<String>>> FDs,
 			HashMap<String, Tuple> truthTuples) {
 		
+		/*
 		for(Entry<String, Set<Set<String>>> fds : FDs.entrySet()){
 			for(Set<String> fd : fds.getValue()){
 				System.out.println(fd.toString() + "->" + fds.getKey());
 			}
 		}
+		*/
 		LinkedList<String> FDKeys = new LinkedList<String>(FDs.keySet());
 		
 		for (Tuple tuple : truthTuples.values()) {
 			StringBuffer sb = new StringBuffer();
 			for (String _field : DataProfolling.FIELDS){
 				if (FDKeys.contains(_field)){
+					/*
+					if(tuple.getValue("CUID").equals("788") && _field.equals("ZIP")){
+						System.out.println("hahahahah");
+					}
+					*/
 					sb.append(checkValue(_field, tuple, FDs, truthTuples)).append(":");
 				} else {
 					sb.append(tuple.getValue(_field)).append(":");
@@ -56,30 +65,37 @@ public class FDScanner {
 					break;
 				}
 			}
-			LinkedList<Tuple> tuples = new LinkedList<Tuple>();
-			for (int _cuid : partition) {
-				tuples.add(truthTuples.get(Integer.toString(_cuid)));
-			}
-			Iterator<Tuple> it = tuples.iterator();
-			while (it.hasNext()) {
-				Tuple t = it.next();
-				if (t.getValue(field).matches("NeedRepair")) {
-					it.remove();
+			// 只有存在等价类时，才把其放入voteBox，否则视为对这个tuple无效的FD
+			if (!partition.isEmpty()) {
+				LinkedList<Tuple> tuples = new LinkedList<Tuple>();
+				for (int _cuid : partition) {
+					tuples.add(truthTuples.get(Integer.toString(_cuid)));
 				}
-			}
-		
-			if (tuples.size() > 2) {
-				result = DataProfolling.voteTruthValue(tuples, field);
-			} else {
+				Iterator<Tuple> it = tuples.iterator();
+				while (it.hasNext()) {
+					Tuple t = it.next();
+					if (isNeedRepair(t.getValue(field))) {
+						it.remove();
+					}
+				}
+
 				result = tuple.getValue(field);
-			}
-			
-			if(!result.matches("NeedRepair")){
+				if (isNeedRepair(result)) {
+					result = voteMostValue(tuples, field).get("value");
+				} else {
+					if (tuples.size() > 2) {
+						Map<String, String> voteResult = voteMostValue(tuples, field);
+						if (Integer.parseInt(voteResult.get("count")) > 1)
+							result = voteResult.get("value");
+					}
+				}
+
 				if (voteBox.containsKey(result)) {
 					voteBox.put(result, voteBox.get(result) + 1);
 				} else {
 					voteBox.put(result, 1);
 				}
+
 			}
 				
 		}
@@ -95,4 +111,38 @@ public class FDScanner {
 		return result;
 	}
 
+	private static boolean isNeedRepair(String value) {
+		return value.endsWith("NeedRepair");
+	}
+
+	private static Map<String, String> voteMostValue(LinkedList<Tuple> tuples, String field) {
+		String truthValue = "";
+		int maxVote = Integer.MIN_VALUE;
+		HashMap<String, Integer> voteBox = new HashMap<String, Integer>();
+		for (Tuple tuple : tuples) {
+			String value = tuple.getValue(field);
+			if (voteBox.containsKey(value)) {
+				voteBox.put(value, voteBox.get(value) + 1);
+			} else {
+				voteBox.put(value, 1);
+			}
+		}
+		for (Entry voteEntry : voteBox.entrySet()) {
+			int voteCount = (Integer) voteEntry.getValue();
+			String value = (String) voteEntry.getKey();
+			if (voteCount > maxVote) {
+				truthValue = value;
+				maxVote = voteCount;
+			}
+		}
+		Map<String, String> result = new HashMap<String, String>();
+		result.put("value", truthValue);
+		result.put("count", String.valueOf(maxVote));
+		return result;
+	}
+
+	public static void main(String args[]){
+		String s = "111-NeedRepair";
+		System.out.println(isNeedRepair(s));
+	}
 }

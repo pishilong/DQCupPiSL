@@ -32,7 +32,7 @@ public class FDDiscover {
 	public static int tuplesAmount;
 	
 	//epsilon
-	public static final float eps = (float) 0.0001;
+	public static final float eps = (float) 0.0012;
 	
 	//stop level
 	private static final int stopLevel = 4;
@@ -51,7 +51,7 @@ public class FDDiscover {
 		List<Set<String>> currentLevel = levels.getLast();
 		
 		while(!currentLevel.isEmpty() && levels.size() <= stopLevel){
-			System.out.println("currentLevel:" + currentLevel.toString());
+			//System.out.println("currentLevel:" + currentLevel.toString());
 			computeDependencies(currentLevel);
 			prune(currentLevel);
 			levels.addLast(generateNextLevel(currentLevel));
@@ -258,7 +258,7 @@ public class FDDiscover {
 			return true;
 		}else{
 			float e = computeFDE(X, A, XA);		
-	        return e < eps;
+	        return e < eps && e > 0.0005;
 		}
 	}
 
@@ -282,9 +282,12 @@ public class FDDiscover {
 		
 		float result = (float) e / (float) tuplesAmount;
 		
-		if(A == "ZIP" && X.contains("STADD")){
+		/*
+		if(A == "STADD"){
 			System.out.println("e(" + X + "->" + A + "): " + result);
+			System.out.println(partition.get(X).toString());
 		}
+		*/
 		return result;
 	}
 
@@ -359,20 +362,22 @@ public class FDDiscover {
 				String value = tuple.getValue(field);
 				int cuid = Integer.parseInt(tuple.getValue("CUID"));
 				int klass;
-				if (valueDict.containsKey(value)){
-					klass = valueDict.get(value);
-				}else{
-					klass = valueClass;
-					valueDict.put(value, valueClass);
-					valueClass += 1;
-				}
-				
-				if (result.containsKey(klass)) {
-					result.get(klass).add(cuid);
-				} else {
-					Set<Integer> cuidSet = new HashSet<Integer>();
-					cuidSet.add(cuid);
-					result.put(klass, cuidSet);
+				if (!value.isEmpty()) {
+					if (valueDict.containsKey(value)) {
+						klass = valueDict.get(value);
+					} else {
+						klass = valueClass;
+						valueDict.put(value, valueClass);
+						valueClass += 1;
+					}
+
+					if (result.containsKey(klass)) {
+						result.get(klass).add(cuid);
+					} else {
+						Set<Integer> cuidSet = new HashSet<Integer>();
+						cuidSet.add(cuid);
+						result.put(klass, cuidSet);
+					}
 				}
 			}
 			
