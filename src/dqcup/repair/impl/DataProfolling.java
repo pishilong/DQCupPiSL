@@ -61,6 +61,9 @@ public class DataProfolling {
 		for (Tuple tuple : truthTuples.values()){
 			StringBuffer sb = new StringBuffer();
 			for (String field : FIELDS){
+//				if(tuple.getValue("CUID").equals("9718") && field  == "ZIP"){
+//					System.out.println("sss");
+//				}
 				sb.append(checkValue(field, tuple)).append(":");
 			}
 			sb.deleteCharAt(sb.length() - 1);

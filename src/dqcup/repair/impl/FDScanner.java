@@ -32,11 +32,9 @@ public class FDScanner {
 			StringBuffer sb = new StringBuffer();
 			for (String _field : DataProfolling.FIELDS){
 				if (FDKeys.contains(_field)){
-					/*
-					if(tuple.getValue("CUID").equals("788") && _field.equals("ZIP")){
-						System.out.println("hahahahah");
-					}
-					*/
+//					if(tuple.getValue("CUID").equals("9718") && _field.equals("ZIP")){
+//						System.out.println("hahahahah");
+//					}
 					sb.append(checkValue(_field, tuple, FDs, truthTuples)).append(":");
 				} else {
 					sb.append(tuple.getValue(_field)).append(":");
@@ -90,10 +88,12 @@ public class FDScanner {
 					}
 				}
 
-				if (voteBox.containsKey(result)) {
-					voteBox.put(result, voteBox.get(result) + 1);
-				} else {
-					voteBox.put(result, 1);
+				if (!result.isEmpty()) {
+					if (voteBox.containsKey(result)) {
+						voteBox.put(result, voteBox.get(result) + 1);
+					} else {
+						voteBox.put(result, 1);
+					}
 				}
 
 			}
@@ -141,8 +141,4 @@ public class FDScanner {
 		return result;
 	}
 
-	public static void main(String args[]){
-		String s = "111-NeedRepair";
-		System.out.println(isNeedRepair(s));
-	}
 }
