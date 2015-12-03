@@ -186,7 +186,9 @@ public class FDDiscover {
 						XA.add(A);
 						for (String B : X) {
 							XA.remove(B);
-							interSet.retainAll(rhs.get(XA));
+							if (rhs.containsKey(XA)) {
+								interSet.retainAll(rhs.get(XA));		
+							}
 						}
 						if (interSet.contains(A)) {
 							addFD(A,X);

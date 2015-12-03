@@ -117,7 +117,7 @@ public class FDScanner {
 
 	private static Map<String, String> voteMostValue(LinkedList<Tuple> tuples, String field) {
 		String truthValue = "";
-		int maxVote = Integer.MIN_VALUE;
+		int maxVote = -1;
 		HashMap<String, Integer> voteBox = new HashMap<String, Integer>();
 		for (Tuple tuple : tuples) {
 			String value = tuple.getValue(field);
