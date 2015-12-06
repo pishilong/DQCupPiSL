@@ -44,11 +44,11 @@ public class DatabaseRepairImpl implements DatabaseRepair {
 			}
 		}
 		
-		/*
+	/*	
 		for (RepairedCell rc : result){
 			System.out.println(rc.toString());
-		}
-		*/
+		}*/
+		
 		
 		return result;
 	}

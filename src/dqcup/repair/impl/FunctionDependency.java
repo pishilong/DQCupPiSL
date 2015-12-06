@@ -63,7 +63,7 @@ public class FunctionDependency {
 	/*
 	 * 修复truthValue
 	 */
-	private static String checkValue(String field, Tuple tuple) {
+	public static String checkValue(String field, Tuple tuple) {
 		String result = tuple.getValue(field);
 		switch (field){
 			case "CUID":

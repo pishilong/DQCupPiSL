@@ -38,7 +38,7 @@ public class FDDiscover {
 	private static final int stopLevel = 4;
 	
 	//fields
-	public static final String[] FIELDS = new String[]{"FNAME", "LNAME", "STNUM", "STADD",
+	public static final String[] FIELDS = new String[]{"MINIT", "FNAME", "LNAME", "STNUM", "STADD",
 				"APMT", "CITY", "STATE", "ZIP"};
 	
 	//e(X->A)记录对于每个A的FD的e最小值
@@ -256,10 +256,12 @@ public class FDDiscover {
 		XA.add(A);
 		float e_x = caculateE(X);
 		float e_w = caculateE(XA);
+		
 		if (e_x - e_w > eps && e_x < eps){
 			return true;
 		}else{
-			float e = computeFDE(X, A, XA);		
+			float e = computeFDE(X, A, XA);	
+			
 	        return e < eps && e > 0.0005;
 		}
 	}
@@ -284,12 +286,12 @@ public class FDDiscover {
 		
 		float result = (float) e / (float) tuplesAmount;
 		
-		/*
-		if(A == "STADD"){
+		
+		/*if(A == "ZIP"){
 			System.out.println("e(" + X + "->" + A + "): " + result);
-			System.out.println(partition.get(X).toString());
-		}
-		*/
+			//System.out.println(partition.get(X).toString());
+		}*/
+		
 		return result;
 	}
 

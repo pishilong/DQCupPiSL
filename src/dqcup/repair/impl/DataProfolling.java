@@ -45,20 +45,21 @@ public class DataProfolling {
 		// 根据FIELDS生成COLUMNNAMES
 		generateColumnNames();
 
+		tuples = checkAndRepairTuples(tuples);
+		
 		// 初始化groupedTuples
 		groupTuples(tuples);
 
 		// 根据most vote原则，计算truthTuples
 		generateTruthTuples();
-
-		checkAndRepairTruthTuples();
 		
 	
 		return truthTuples;
 	}
 	
-	private static void checkAndRepairTruthTuples() {
-		for (Tuple tuple : truthTuples.values()){
+	private static LinkedList<Tuple> checkAndRepairTuples(LinkedList<Tuple> tuples) {
+		LinkedList<Tuple> newTuples = new LinkedList<Tuple>();
+		for (Tuple tuple : tuples){
 			StringBuffer sb = new StringBuffer();
 			for (String field : FIELDS){
 //				if(tuple.getValue("CUID").equals("9718") && field  == "ZIP"){
@@ -67,14 +68,12 @@ public class DataProfolling {
 				sb.append(checkValue(field, tuple)).append(":");
 			}
 			sb.deleteCharAt(sb.length() - 1);
-			truthTuples.put(tuple.getValue("CUID"), 
-					new Tuple(COLUMNNAMES, sb.toString()));
-			truthTuples.remove(tuple);
+			newTuples.add(new Tuple(COLUMNNAMES, sb.toString()));
 		}
+		return newTuples;
 	}
 
 	private static void generateTruthTuples() {
-	
 		for (Entry entry : groupedTuples.get("CUID").entrySet()){
 			String cuid = (String)entry.getKey();
 			LinkedList<Tuple> list = (LinkedList<Tuple>)entry.getValue();
@@ -86,27 +85,30 @@ public class DataProfolling {
 			truthValues.deleteCharAt(truthValues.length() - 1);
 			truthTuples.put(cuid, new Tuple(COLUMNNAMES, truthValues.toString()));
 		}
-		
 	}
 
 	public static String voteTruthValue(LinkedList<Tuple> list, String field) {
-		String truthValue = "";
+		String truthValue = list.getFirst().getValue(field);
 		int maxVote = Integer.MIN_VALUE;
 		HashMap<String, Integer> voteBox = new HashMap<String, Integer>();
-		for (Tuple tuple : list) {
-			String value = tuple.getValue(field);
-			if (voteBox.containsKey(value)) {
-				voteBox.put(value, voteBox.get(value) + 1);
-			} else {
-				voteBox.put(value, 1);
+		if (list.size() > 1) {
+			for (Tuple tuple : list) {
+				String value = tuple.getValue(field);
+				if (!FDScanner.isNeedRepair(value)) {
+					if (voteBox.containsKey(value)) {
+						voteBox.put(value, voteBox.get(value) + 1);
+					} else {
+						voteBox.put(value, 1);
+					}
+				}
 			}
-		}
-		for (Entry voteEntry : voteBox.entrySet()){
-			int voteCount = (Integer) voteEntry.getValue();
-			String value = (String) voteEntry.getKey();
-			if (voteCount > maxVote) {
-				truthValue = value;
-				maxVote = voteCount;
+			for (Entry voteEntry : voteBox.entrySet()) {
+				int voteCount = (Integer) voteEntry.getValue();
+				String value = (String) voteEntry.getKey();
+				if (voteCount > maxVote) {
+					truthValue = value;
+					maxVote = voteCount;
+				}
 			}
 		}
 		return truthValue;
@@ -146,6 +148,8 @@ public class DataProfolling {
 	private static String checkValue(String field, Tuple tuple) {
 		String result = tuple.getValue(field);
 		switch (field){
+			case "RUID":
+				break;
 			case "CUID":
 				break;
 			case "SSN":
@@ -378,11 +382,27 @@ public class DataProfolling {
 			if (m.matches()) {
 				return minit;
 			} else {
-				//TODO
+				//一位小写字母，转化为大写字母
+				regex = "[A-Z]{1}";
+				p = Pattern.compile(regex);
+				m = p.matcher(minit);
+				if(m.matches()){
+					return minit.toUpperCase();
+				}
+				//大写字母加若干数字的情况，抽取大写字母
+				regex = "^\\d*(\\w{1})\\d*$";
+				p = Pattern.compile(regex);
+				m = p.matcher(minit);
+				if(m.find()){
+					return m.group(1).toUpperCase();
+				}
+				//Others
 				return minit + "-NeedRepair";
 			}
 		}
 	}
+
+
 
 	/*
 	 * 可能包含字母,逗号及句号,首字母大写
@@ -417,6 +437,16 @@ public class DataProfolling {
 		} else {
 			//TODO
 			return ssn + "-NeedRepair";
+		}
+	}
+	
+	public static void main(String args[]) {
+		String s = "223o1123";
+		String regex = "^\\d*(\\w{1})\\d*$";
+		Pattern p = Pattern.compile(regex);
+		Matcher m = p.matcher(s);
+		if(m.find()){
+			System.out.println(m.group(1));
 		}
 	}
 

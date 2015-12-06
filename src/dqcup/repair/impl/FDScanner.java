@@ -19,22 +19,22 @@ public class FDScanner {
 	public static HashMap<String, Tuple> performance(HashMap<String, Set<Set<String>>> FDs,
 			HashMap<String, Tuple> truthTuples) {
 		
-		/*
-		for(Entry<String, Set<Set<String>>> fds : FDs.entrySet()){
+		
+	/*	for(Entry<String, Set<Set<String>>> fds : FDs.entrySet()){
 			for(Set<String> fd : fds.getValue()){
 				System.out.println(fd.toString() + "->" + fds.getKey());
 			}
-		}
-		*/
+		}*/
+		
 		LinkedList<String> FDKeys = new LinkedList<String>(FDs.keySet());
 		
 		for (Tuple tuple : truthTuples.values()) {
 			StringBuffer sb = new StringBuffer();
 			for (String _field : DataProfolling.FIELDS){
 				if (FDKeys.contains(_field)){
-//					if(tuple.getValue("CUID").equals("9718") && _field.equals("ZIP")){
-//						System.out.println("hahahahah");
-//					}
+				/*	if(tuple.getValue("CUID").equals("1044") && _field.equals("ZIP")){
+						System.out.println("hahahahah");
+					}*/
 					sb.append(checkValue(_field, tuple, FDs, truthTuples)).append(":");
 				} else {
 					sb.append(tuple.getValue(_field)).append(":");
@@ -49,46 +49,80 @@ public class FDScanner {
 	}
 
 	private static String checkValue(String field, Tuple tuple, HashMap<String, Set<Set<String>>> FDs, HashMap<String, Tuple> truthTuples) {
-		Map<String, Integer> voteBox = new HashMap<String, Integer>();
-		for(Set<String> _dependency : FDs.get(field)){
-			String result;
-			Set<String> dependencies = _dependency;
-			Collection<Set<Integer>> partitions = FDDiscover.partition.get(dependencies).values();
-			Set<Integer> partition = new HashSet<Integer>();
+		String result = voteByDependencies(field, tuple, FDs.get(field), truthTuples, "Check");
+		
+		if(isNeedRepair(result)){
+			result = voteByManulRule(field, tuple, truthTuples, "Check");
+		}
+		
+		return result;
+	}
 
-			int cuid = Integer.parseInt(tuple.getValue("CUID"));
-			for (Set<Integer> _p : partitions) {
-				if (_p.contains(cuid)) {
-					partition = _p;
-					break;
-				}
-			}
+	private static String voteByManulRule(String field, Tuple tuple, HashMap<String, Tuple> truthTuples, String mode) {
+		String result = tuple.getValue(field);
+		Set<Set<String>> dependencies;
+		switch(field){
+			case "ZIP":
+				dependencies = new HashSet<Set<String>>();
+				dependencies.add(new HashSet<String>(Arrays.asList("STADD", "CITY")));
+				dependencies.add(new HashSet<String>(Arrays.asList("MINIT", "LNAME")));
+				result = voteByDependencies(field, tuple, dependencies, truthTuples, mode);
+				break;
+			case "STATE":
+				dependencies = new HashSet<Set<String>>();
+				dependencies.add(new HashSet<String>(Arrays.asList("APMT", "ZIP")));
+				result = voteByDependencies(field, tuple, dependencies, truthTuples, mode);
+				break;
+			case "APMT":
+				dependencies = new HashSet<Set<String>>();
+				dependencies.add(new HashSet<String>(Arrays.asList("FNAME", "STNUM")));
+				result = voteByDependencies(field, tuple, dependencies, truthTuples, mode);
+				break;
+			default:
+				break;				
+		}
+		return result;
+	}
+
+	private static String voteByDependencies(String field, Tuple tuple, Set<Set<String>> dependencies,
+			HashMap<String, Tuple> truthTuples, String mode) {
+		Map<String, Integer> voteBox = new HashMap<String, Integer>();
+		for(Set<String> _dependency : dependencies){
+			String result = null;
+			Set<Integer> partition = findPartition(_dependency, tuple);
+
 			// 只有存在等价类时，才把其放入voteBox，否则视为对这个tuple无效的FD
 			if (!partition.isEmpty()) {
-				LinkedList<Tuple> tuples = new LinkedList<Tuple>();
-				for (int _cuid : partition) {
-					tuples.add(truthTuples.get(Integer.toString(_cuid)));
-				}
-				Iterator<Tuple> it = tuples.iterator();
-				while (it.hasNext()) {
-					Tuple t = it.next();
-					if (isNeedRepair(t.getValue(field))) {
-						it.remove();
+				LinkedList<Tuple> tuples = findTuplesByPartition(partition, field, truthTuples, mode);
+				if(tuples.isEmpty()){
+					if (mode.equals("Check")) {
+						for (int _cuid : partition) {
+							tuples.add(truthTuples.get(Integer.toString(_cuid)));
+						}
+						Iterator<Tuple> it = tuples.iterator();
+						while (it.hasNext()) {
+							Tuple t = it.next();
+							String value = voteByManulRule(field, t, truthTuples, "Recheck");
+							if (!isNeedRepair(value)) {
+								result = value;
+							}
+						}
 					}
-				}
-
-				result = tuple.getValue(field);
-				if (isNeedRepair(result)) {
-					result = voteMostValue(tuples, field).get("value");
 				} else {
-					if (tuples.size() > 2) {
-						Map<String, String> voteResult = voteMostValue(tuples, field);
-						if (Integer.parseInt(voteResult.get("count")) > 1)
-							result = voteResult.get("value");
+					result = tuple.getValue(field);
+					if (isNeedRepair(result)) {
+						result = voteMostValue(tuples, field).get("value");
+					} else {
+						if (tuples.size() > 2) {
+							Map<String, String> voteResult = voteMostValue(tuples, field);
+							if (Integer.parseInt(voteResult.get("count")) > 1)
+								result = voteResult.get("value");
+						}
 					}
 				}
+				
 
-				if (!result.isEmpty()) {
+				if (result != null && !result.isEmpty()) {
 					if (voteBox.containsKey(result)) {
 						voteBox.put(result, voteBox.get(result) + 1);
 					} else {
@@ -111,7 +145,36 @@ public class FDScanner {
 		return result;
 	}
 
-	private static boolean isNeedRepair(String value) {
+	private static LinkedList<Tuple> findTuplesByPartition(Set<Integer> partition, String field, HashMap<String, Tuple> truthTuples, String mode) {
+		LinkedList<Tuple> tuples = new LinkedList<Tuple>();
+		for (int _cuid : partition) {
+			tuples.add(truthTuples.get(Integer.toString(_cuid)));
+		}
+		Iterator<Tuple> it = tuples.iterator();
+		while (it.hasNext()) {
+			Tuple t = it.next();
+			if (isNeedRepair(t.getValue(field))) {
+				it.remove();
+			}
+		}
+		return tuples;
+	}
+
+	private static Set<Integer> findPartition(Set<String> dependencies, Tuple tuple) {
+		Set<Integer> partition = new HashSet<Integer>();
+		Collection<Set<Integer>> partitions = FDDiscover.partition.get(dependencies).values();
+		
+		int cuid = Integer.parseInt(tuple.getValue("CUID"));
+		for (Set<Integer> _p : partitions) {
+			if (_p.contains(cuid)) {
+				partition = _p;
+				break;
+			}
+		}
+		return partition;
+	}
+
+	public static boolean isNeedRepair(String value) {
 		return value.endsWith("NeedRepair");
 	}
 
